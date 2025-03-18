@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-export default function LoginPage() {
+// Komponen untuk menangani parameter pencarian
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const registered = searchParams.get("registered");
+  const registered = searchParams.get('registered');
   
   const [formData, setFormData] = useState({
     username: "",
@@ -105,6 +106,7 @@ export default function LoginPage() {
         // Save token and role to localStorage
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("userRole", response.data.role || "user");
+        localStorage.setItem("userId", formData.username);
         
         // Redirect to dashboard
         toast.success("Login successful!");
@@ -220,5 +222,14 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// Komponen utama dengan Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
