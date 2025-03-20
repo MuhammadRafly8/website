@@ -38,24 +38,21 @@ const Navbar = () => {
           
           {userRole === 'admin' && (
             <>
+              <Link href="/admin/matrix" className="hover:underline">
+                Matrix Management
+              </Link>
               <Link href="/history" className="hover:underline">
                 History
-              </Link>
-              <Link href="/admin/settings" className="hover:underline">
-                Settings
               </Link>
             </>
           )}
           
-          <div className="flex items-center flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
-            <span className="md:mr-2">Welcome, {userRole === 'admin' ? 'Admin' : 'User'}</span>
-            <button
-              onClick={logout}
-              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 w-full md:w-auto"
-            >
-              Logout
-            </button>
-          </div>
+          <button 
+            onClick={logout}
+            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Logout
+          </button>
         </div>
       </div>
     </header>

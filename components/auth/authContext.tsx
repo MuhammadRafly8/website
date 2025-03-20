@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'; // Mengubah kembali ke next/navigat
 interface AuthContextType {
   isAuthenticated: boolean;
   userRole: string | null;
-  login: (token: string, role: string) => void;
+  userId: string | null;
+  login: (token: string, role: string, id: string) => void;
   logout: () => void;
   isAdmin: () => boolean;
 }
@@ -16,31 +17,38 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     // Check if user is logged in on initial load
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('userRole');
+    const id = localStorage.getItem('userId');
     
     if (token && role) {
       setIsAuthenticated(true);
       setUserRole(role);
+      setUserId(id);
     }
   }, []);
 
-  const login = (token: string, role: string) => {
+  const login = (token: string, role: string, id: string) => {
     localStorage.setItem('token', token);
     localStorage.setItem('userRole', role);
+    localStorage.setItem('userId', id);
     setIsAuthenticated(true);
     setUserRole(role);
+    setUserId(id);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('userId');
     setIsAuthenticated(false);
     setUserRole(null);
+    setUserId(null);
     router.push('/auth/login');
   };
 
@@ -49,7 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userRole, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ isAuthenticated, userRole, userId, login, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
