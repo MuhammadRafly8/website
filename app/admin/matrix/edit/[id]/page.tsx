@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../../../components/auth/authContext";
 import AdminRoute from "../../../../../components/auth/adminRoute";
 import { MatrixItem, StructuredMatrix } from "../../../../../types/matrix";
+import { matrixService } from "../../../../../services/api";
 
 export default function EditMatrixPage() {
   const [matrix, setMatrix] = useState<MatrixItem | null>(null);
@@ -25,24 +26,25 @@ export default function EditMatrixPage() {
   const { isAdmin } = useAuth();
 
   useEffect(() => {
-    // Load matrix from localStorage for demo
-    const storedMatrices = localStorage.getItem('adminMatrices');
-    if (storedMatrices) {
-      const matrices = JSON.parse(storedMatrices) as MatrixItem[];
-      const foundMatrix = matrices.find(m => m.id === matrixId);
-      if (foundMatrix) {
-        setMatrix(foundMatrix);
-        calculateTotals(foundMatrix.data);
-      } else {
+    // Load matrix from API instead of localStorage
+    const fetchMatrix = async () => {
+      try {
+        const data = await matrixService.getMatrixById(matrixId);
+        setMatrix(data);
+        calculateTotals(data.data);
+      } catch (error) {
+        console.error("Error fetching matrix:", error);
         toast.error("Matrix not found");
         router.push("/admin/matrix");
+      } finally {
+        setLoading(false);
       }
-    } else {
-      toast.error("No matrices found");
-      router.push("/admin/matrix");
+    };
+
+    if (isAdmin()) {
+      fetchMatrix();
     }
-    setLoading(false);
-  }, [matrixId, router]);
+  }, [matrixId, router, isAdmin]);
 
   const calculateTotals = (data: StructuredMatrix) => {
     const rowTotals: Record<number, number> = {};
@@ -120,20 +122,17 @@ export default function EditMatrixPage() {
     setHasUnsavedChanges(true);
   };
 
-  const saveChanges = () => {
+  const saveChanges = async () => {
     if (!matrix) return;
     
-    // Save to localStorage for demo
-    const storedMatrices = localStorage.getItem('adminMatrices');
-    if (storedMatrices) {
-      const matrices = JSON.parse(storedMatrices) as MatrixItem[];
-      const updatedMatrices = matrices.map(m => 
-        m.id === matrix.id ? matrix : m
-      );
-      
-      localStorage.setItem('adminMatrices', JSON.stringify(updatedMatrices));
+    try {
+      // Save to API instead of localStorage
+      await matrixService.updateMatrix(matrix.id, matrix);
       setHasUnsavedChanges(false);
-      toast.success("Matrix saved successfully");
+      toast.success("Changes saved successfully");
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      toast.error("Failed to save changes");
     }
   };
 
@@ -364,7 +363,7 @@ export default function EditMatrixPage() {
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(rowsByCategory).map(([category, rows], categoryIndex) => (
+                {Object.entries(rowsByCategory).map(([category, rows]) => (
                   <Fragment key={category}>
                     {rows.map((row, rowIndex) => (
                       <tr key={row.id}>

@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../components/auth/authContext";
 import AdminRoute from "../../../components/auth/adminRoute";
 import { MatrixItem } from "../../../types/matrix";
-import { v4 as uuidv4 } from 'uuid';
+import { matrixService } from "../../../services/api";
 
 export default function AdminMatrixPage() {
   const [matrices, setMatrices] = useState<MatrixItem[]>([]);
@@ -21,22 +21,29 @@ export default function AdminMatrixPage() {
   const { userId } = useAuth();
 
   useEffect(() => {
-    // Load matrices from localStorage for demo
-    const storedMatrices = localStorage.getItem('adminMatrices');
-    if (storedMatrices) {
-      setMatrices(JSON.parse(storedMatrices));
-    }
-    setLoading(false);
+    // Load matrices from API instead of localStorage
+    const fetchMatrices = async () => {
+      try {
+        const data = await matrixService.getAllMatrices();
+        setMatrices(data);
+      } catch (error) {
+        console.error("Error fetching matrices:", error);
+        toast.error("Failed to load matrices");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMatrices();
   }, []);
 
-  const handleCreateMatrix = () => {
+  const handleCreateMatrix = async () => {
     if (!newMatrix.title || !newMatrix.keyword) {
       toast.error("Title and keyword are required");
       return;
     }
 
     // Create a new matrix with default structure
-    const matrixId = uuidv4();
     const defaultMatrix = {
       rows: [
         { id: 1, name: "Availability", category: "Technical/Ops" },
@@ -51,34 +58,37 @@ export default function AdminMatrixPage() {
       dependencies: {}
     };
 
-    const newMatrixItem: MatrixItem = {
-      id: matrixId,
-      title: newMatrix.title,
-      description: newMatrix.description,
-      keyword: newMatrix.keyword,
-      createdAt: new Date().toISOString(),
-      createdBy: userId || "admin",
-      data: defaultMatrix,
-      sharedWith: []
-    };
+    try {
+      const newMatrixData = {
+        title: newMatrix.title,
+        description: newMatrix.description,
+        keyword: newMatrix.keyword,
+        data: defaultMatrix,
+      };
 
-    const updatedMatrices = [...matrices, newMatrixItem];
-    setMatrices(updatedMatrices);
-    
-    // Save to localStorage for demo
-    localStorage.setItem('adminMatrices', JSON.stringify(updatedMatrices));
-    
-    setShowCreateModal(false);
-    setNewMatrix({ title: "", description: "", keyword: "" });
-    toast.success("Matrix created successfully");
+      const createdMatrix = await matrixService.createMatrix(newMatrixData);
+      
+      setMatrices([...matrices, createdMatrix]);
+      setShowCreateModal(false);
+      setNewMatrix({ title: "", description: "", keyword: "" });
+      toast.success("Matrix created successfully");
+    } catch (error) {
+      console.error("Error creating matrix:", error);
+      toast.error("Failed to create matrix");
+    }
   };
 
-  const handleDeleteMatrix = (id: string) => {
+  const handleDeleteMatrix = async (id: string) => {
     if (confirm("Are you sure you want to delete this matrix?")) {
-      const updatedMatrices = matrices.filter(matrix => matrix.id !== id);
-      setMatrices(updatedMatrices);
-      localStorage.setItem('adminMatrices', JSON.stringify(updatedMatrices));
-      toast.success("Matrix deleted successfully");
+      try {
+        await matrixService.deleteMatrix(id);
+        const updatedMatrices = matrices.filter(matrix => matrix.id !== id);
+        setMatrices(updatedMatrices);
+        toast.success("Matrix deleted successfully");
+      } catch (error) {
+        console.error("Error deleting matrix:", error);
+        toast.error("Failed to delete matrix");
+      }
     }
   };
 

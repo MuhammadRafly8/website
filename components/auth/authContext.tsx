@@ -1,14 +1,16 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation'; // Mengubah kembali ke next/navigation untuk App Router
+import { useRouter } from 'next/navigation';
+import axios from 'axios';
+import { authService } from '../../services/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   userRole: string | null;
   userId: string | null;
-  login: (token: string, role: string, id: string) => void;
-  logout: () => void;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   isAdmin: () => boolean;
 }
 
@@ -22,34 +24,62 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Check if user is logged in on initial load
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('userRole');
-    const id = localStorage.getItem('userId');
-    
-    if (token && role) {
-      setIsAuthenticated(true);
-      setUserRole(role);
-      setUserId(id);
-    }
+    const checkAuthStatus = async () => {
+      try {
+        const userData = await authService.getCurrentUser();
+        if (userData) {
+          setIsAuthenticated(true);
+          setUserRole(userData.role);
+          setUserId(userData.id);
+          
+          // Set authorization header for future requests
+          axios.defaults.headers.common['Authorization'] = `Bearer ${userData.token}`;
+        }
+      } catch (error) {
+        // If error, user is not authenticated
+        console.error('Auth check failed:', error);
+        setIsAuthenticated(false);
+        setUserRole(null);
+        setUserId(null);
+      }
+    };
+
+    checkAuthStatus();
   }, []);
 
-  const login = (token: string, role: string, id: string) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('userRole', role);
-    localStorage.setItem('userId', id);
-    setIsAuthenticated(true);
-    setUserRole(role);
-    setUserId(id);
+  const login = async (username: string, password: string) => {
+    try {
+      const response = await authService.login(username, password);
+      
+      // Set authorization header for future requests
+      axios.defaults.headers.common['Authorization'] = `Bearer ${response.token}`;
+      
+      setIsAuthenticated(true);
+      setUserRole(response.user.role);
+      setUserId(response.user.id);
+      
+      return response;
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userId');
-    setIsAuthenticated(false);
-    setUserRole(null);
-    setUserId(null);
-    router.push('/auth/login');
+  const logout = async () => {
+    try {
+      // Call logout endpoint
+      await authService.logout();
+      
+      // Remove token from axios headers
+      delete axios.defaults.headers.common['Authorization'];
+      
+      setIsAuthenticated(false);
+      setUserRole(null);
+      setUserId(null);
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const isAdmin = () => {
@@ -57,7 +87,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userRole, userId, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      userRole, 
+      userId, 
+      login, 
+      logout, 
+      isAdmin 
+    }}>
       {children}
     </AuthContext.Provider>
   );

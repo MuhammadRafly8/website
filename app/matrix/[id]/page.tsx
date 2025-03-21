@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { toast } from "react-toastify";
 import { MatrixItem, StructuredMatrix } from "../../../types/matrix";
 import { useAuth } from "../../../components/auth/authContext";
+import { matrixService } from "../../../services/api";
 
 export default function MatrixDetailPage() {
   const [matrix, setMatrix] = useState<MatrixItem | null>(null);
@@ -22,27 +23,60 @@ export default function MatrixDetailPage() {
   const { isAuthenticated, userId, isAdmin } = useAuth();
 
   useEffect(() => {
-    // Load matrix from localStorage for demo
-    const storedMatrices = localStorage.getItem('adminMatrices');
-    if (storedMatrices) {
-      const matrices = JSON.parse(storedMatrices) as MatrixItem[];
-      const foundMatrix = matrices.find(m => m.id === matrixId);
-      if (foundMatrix) {
-        setMatrix(foundMatrix);
-        calculateTotals(foundMatrix.data);
+    // Load matrix from API instead of localStorage
+    const fetchMatrix = async () => {
+      try {
+        const data = await matrixService.getMatrixById(matrixId);
+        setMatrix(data);
+        calculateTotals(data.data);
         
-        // Check if user is admin or already authorized
-        const storedAuth = localStorage.getItem(`matrix_auth_${matrixId}_${userId}`);
-        if (isAdmin() || storedAuth === 'true') {
+        // Check if user is admin or already authorized via backend
+        if (isAdmin() || data.createdBy === userId || data.authorized === true) {
           setIsAuthorized(true);
           setShowKeywordModal(false);
         }
-      } else {
-        toast.error("Matrix not found");
+      } catch (error) {
+        console.error("Error fetching matrix:", error);
+        toast.error("Failed to load matrix");
+      } finally {
+        setLoading(false);
       }
+    };
+
+    if (isAuthenticated) {
+      fetchMatrix();
     }
-    setLoading(false);
-  }, [matrixId, isAdmin, userId]);
+  }, [matrixId, isAdmin, userId, isAuthenticated]);
+
+  const handleCellChange = async (rowId: number, colId: number) => {
+    if (!matrix || !isAuthenticated || !isAuthorized) return;
+    
+    const key = `${rowId}_${colId}`;
+    const newValue = !matrix.data.dependencies[key];
+    
+    const updatedMatrix = {
+      ...matrix,
+      data: {
+        ...matrix.data,
+        dependencies: {
+          ...matrix.data.dependencies,
+          [key]: newValue
+        }
+      }
+    };
+    
+    setMatrix(updatedMatrix);
+    calculateTotals(updatedMatrix.data);
+    
+    try {
+      // Save changes to API
+      await matrixService.updateMatrix(matrix.id, updatedMatrix);
+      toast.success("Cell updated successfully");
+    } catch (error) {
+      console.error("Error updating matrix:", error);
+      toast.error("Failed to update matrix");
+    }
+  };
 
   const calculateTotals = (data: StructuredMatrix) => {
     const rowTotals: Record<number, number> = {};
@@ -81,72 +115,23 @@ export default function MatrixDetailPage() {
     setCategoryTotals(categoryTotals);
   };
 
-  const handleCellChange = (rowId: number, colId: number) => {
-    if (!matrix || !isAuthenticated || !isAuthorized) return;
-    
-    const key = `${rowId}_${colId}`;
-    const newValue = !matrix.data.dependencies[key];
-    
-    const updatedMatrix = {
-      ...matrix,
-      data: {
-        ...matrix.data,
-        dependencies: {
-          ...matrix.data.dependencies,
-          [key]: newValue
-        }
-      }
-    };
-    
-    setMatrix(updatedMatrix);
-    calculateTotals(updatedMatrix.data);
-    
-    // Save changes to localStorage
-    const storedMatrices = localStorage.getItem('adminMatrices');
-    if (storedMatrices) {
-      const matrices = JSON.parse(storedMatrices) as MatrixItem[];
-      const updatedMatrices = matrices.map(m => 
-        m.id === matrix.id ? updatedMatrix : m
-      );
-      
-      localStorage.setItem('adminMatrices', JSON.stringify(updatedMatrices));
-      
-      // Log the change to history
-      const historyEntry = {
-        userId: userId || "anonymous",
-        userRole: isAdmin() ? "admin" : "user",
-        timestamp: new Date().toISOString(),
-        action: newValue ? "Set dependency" : "Remove dependency",
-        rowId,
-        columnId: colId,
-        rowName: matrix.data.rows.find(r => r.id === rowId)?.name,
-        columnName: matrix.data.columns.find(c => c.id === colId)?.name,
-        cellKey: key,
-        details: `Changed value to ${newValue}`,
-        matrixSnapshot: JSON.stringify(updatedMatrix.data)
-      };
-      
-      const history = JSON.parse(localStorage.getItem('matrixHistory') || '[]');
-      history.push(historyEntry);
-      localStorage.setItem('matrixHistory', JSON.stringify(history));
-      
-      toast.success(`Cell updated successfully`);
-    }
-  };
-
-  const verifyKeyword = () => {
+  const verifyKeyword = async () => {
     if (!matrix) return;
     
-    if (keyword === matrix.keyword) {
-      setIsAuthorized(true);
-      setShowKeywordModal(false);
+    try {
+      // Verify keyword through backend API
+      const response = await matrixService.verifyMatrixAccess(matrixId, keyword);
       
-      // Store authorization in localStorage
-      localStorage.setItem(`matrix_auth_${matrixId}_${userId}`, 'true');
-      
-      toast.success("Access granted!");
-    } else {
-      setKeywordError("Invalid keyword. Please try again.");
+      if (response.authorized) {
+        setIsAuthorized(true);
+        setShowKeywordModal(false);
+        toast.success("Access granted!");
+      } else {
+        setKeywordError("Invalid keyword. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error verifying keyword:", error);
+      setKeywordError("Failed to verify keyword. Please try again.");
     }
   };
 

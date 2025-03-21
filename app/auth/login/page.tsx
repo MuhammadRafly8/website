@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useAuth } from "../../../components/auth/authContext";
 
 // Komponen untuk menangani parameter pencarian
 function LoginForm() {
@@ -27,6 +28,8 @@ function LoginForm() {
     }));
   };
 
+  const { login } = useAuth();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -37,81 +40,11 @@ function LoginForm() {
       return;
     }
     
-    // Test credentials for frontend testing
-    if (formData.username === "admin" && formData.password === "admin123") {
-      // Mock successful admin login for testing
-      localStorage.setItem("token", "test-token-for-frontend-development");
-      localStorage.setItem("userRole", "admin");
-      localStorage.setItem("userId", "admin_user");
-      toast.success("Login successful as Admin!");
-      router.push("/matrix");
-      return;
-    } else if (formData.username === "user" && formData.password === "user123") {
-      // Mock successful user login for testing
-      localStorage.setItem("token", "test-token-for-frontend-development");
-      localStorage.setItem("userRole", "user");
-      localStorage.setItem("userId", formData.username);
-      toast.success("Login successful as User!");
-      router.push("/matrix");
-      return;
-    } 
-    // Sample user 1
-    else if (formData.username === "john" && formData.password === "john123") {
-      localStorage.setItem("token", "test-token-for-frontend-development");
-      localStorage.setItem("userRole", "user");
-      localStorage.setItem("userId", "john");
-      toast.success("Login successful as John!");
-      router.push("/matrix");
-      return;
-    }
-    // Sample user 2
-    else if (formData.username === "sarah" && formData.password === "sarah123") {
-      localStorage.setItem("token", "test-token-for-frontend-development");
-      localStorage.setItem("userRole", "user");
-      localStorage.setItem("userId", "sarah");
-      toast.success("Login successful as Sarah!");
-      router.push("/matrix");
-      return;
-    }
-    // Sample user 3
-    else if (formData.username === "mike" && formData.password === "mike123") {
-      localStorage.setItem("token", "test-token-for-frontend-development");
-      localStorage.setItem("userRole", "user");
-      localStorage.setItem("userId", "mike");
-      toast.success("Login successful as Mike!");
-      router.push("/matrix");
-      return;
-    }
-    // Sample user 4
-    else if (formData.username === "emma" && formData.password === "emma123") {
-      localStorage.setItem("token", "test-token-for-frontend-development");
-      localStorage.setItem("userRole", "user");
-      localStorage.setItem("userId", "emma");
-      toast.success("Login successful as Emma!");
-      router.push("/matrix");
-      return;
-    }
-    
     try {
       setLoading(true);
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/login`,
-        {
-          username: formData.username,
-          password: formData.password,
-        }
-      );
-      
-      if (response.data.token) {
-        // Save token and role to localStorage
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("userRole", response.data.role || "user");
-        localStorage.setItem("userId", formData.username);
-        
-        // Redirect to dashboard
-        toast.success("Login successful!");
-        router.push("/matrix");
-      }
+      await login(formData.username, formData.password);
+      toast.success("Login successful!");
+      router.push("/matrix");
     } catch (error: unknown) {
       console.error("Login error:", error);
       if (axios.isAxiosError(error)) {
