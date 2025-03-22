@@ -19,6 +19,9 @@ function LoginForm() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Get all auth values at once to prevent re-renders
+  const { login, isLoading } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -27,8 +30,6 @@ function LoginForm() {
       [name]: value,
     }));
   };
-
-  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +60,17 @@ function LoginForm() {
       setLoading(false);
     }
   };
+
+  // In your return statement, add a condition to show loading state
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <p>Loading authentication status...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">

@@ -2,43 +2,68 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-// Configure axios - tanpa localStorage
+// Configure axios
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle token expiration
-    if (error.response?.status === 401) {
-      // Redirect to login without clearing localStorage
-      window.location.href = '/auth/login';
-    }
+    console.error('API Error:', error);
     return Promise.reject(error);
   }
 );
 
-// Auth services
+// Auth service
 export const authService = {
+  register: async (userData: { username: string; email: string; password: string }) => {
+    try {
+      console.log('Sending registration request to:', `${API_URL}/api/auth/register`);
+      console.log('With data:', { username: userData.username, email: userData.email });
+      
+      const response = await axios.post(`${API_URL}/api/auth/register`, userData);
+      console.log('Registration response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Registration error in service:', error);
+      throw error;
+    }
+  },
+  
   login: async (username: string, password: string) => {
     const response = await axios.post(`${API_URL}/api/auth/login`, { username, password });
     return response.data;
   },
   
-  register: async (userData: { username: string; email: string; password: string }) => {
-    const response = await axios.post(`${API_URL}/api/auth/register`, userData);
-    return response.data;
+  logout: async () => {
+    // Remove token from localStorage
+    localStorage.removeItem('authToken');
+    return { success: true };
   },
   
   getCurrentUser: async () => {
-    const response = await axios.get(`${API_URL}/api/auth/me`);
-    return response.data;
-  },
-
-  logout: async () => {
-    const response = await axios.post(`${API_URL}/api/auth/logout`);
-    return response.data;
+    // Get token from localStorage
+    const token = localStorage.getItem('authToken');
+    
+    if (!token) {
+      return null;
+    }
+    
+    // Set authorization header
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    
+    try {
+      const response = await axios.get(`${API_URL}/api/auth/me`);
+      return {
+        ...response.data,
+        token
+      };
+    } catch (error) {
+      console.error('Get current user error:', error);
+      localStorage.removeItem('authToken');
+      return null;
+    }
   }
 };
 
-// Matrix services
+// Matrix service
 export const matrixService = {
   getAllMatrices: async () => {
     const response = await axios.get(`${API_URL}/api/matrix`);

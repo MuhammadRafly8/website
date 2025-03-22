@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
+import { authService } from "../../../services/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -41,21 +42,26 @@ export default function RegisterPage() {
     
     try {
       setLoading(true);
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/register`,
-        {
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-        }
-      );
+      console.log('Attempting to register with data:', {
+        username: formData.username,
+        email: formData.email,
+        // Don't log password for security reasons
+      });
       
-      if (response.status === 201) {
-        router.push("/auth/login?registered=true");
-      }
+      // Gunakan authService.register daripada axios langsung
+      await authService.register({
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+      });
+      
+      console.log('Registration successful, redirecting to login');
+      // Redirect ke halaman login dengan parameter registered=true
+      router.push("/auth/login?registered=true");
     } catch (error: unknown) {
-      console.error("Registration error:", error);
+      console.error("Registration error details:", error);
       if (axios.isAxiosError(error)) {
+        console.error("API response error:", error.response?.data);
         setError(
           error.response?.data?.error || 
           "Registration failed. Please try again."

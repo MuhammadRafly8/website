@@ -6,15 +6,9 @@ import Navbar from '../components/layout/navbar';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const inter = Inter({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const robotoMono = Roboto_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Define the fonts
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const robotoMono = Roboto_Mono({ subsets: ['latin'], variable: '--font-roboto-mono' });
 
 export const metadata: Metadata = {
   title: "RAMS ",
@@ -26,6 +20,8 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Remove the hooks from here - they can't be used in a Server Component
+  
   return (
     <html lang="en" className={`${inter.variable} ${robotoMono.variable}`}>
       <head>
